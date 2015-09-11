@@ -3,10 +3,8 @@ package slack
 import akka.actor._
 import slack.rtm.SlackRtmClient
 
-import scala.concurrent.duration._
-
 object Main extends App {
-  val token = "..."
+  val token = sys.env("SLACK_ANGRY_TOKEN")
   implicit val system = ActorSystem("slack")
   implicit val ec = system.dispatcher
 
@@ -14,13 +12,44 @@ object Main extends App {
   val selfId = client.state.self.id
 
   client.onEvent { event =>
-    system.log.info("Received new event: {}", event)
-    /*
-    val mentionedIds = SlackUtil.extractMentionedIds(message.text)
 
-    if (mentionedIds.contains(selfId)) {
-      client.sendMessage(message.channel, s"<@${message.user}>: Hey!")
+    import slack.models._
+    system.log.info("Received new event: {}", event)
+
+    //TODO pass this off to another actor to process
+    event match {
+      case message: Message => {
+
+        val mentionedIds = SlackUtil.extractMentionedIds(message.text)
+
+        if (mentionedIds.contains(selfId)) {
+          val retort = doRetort(message.text)
+          client.sendMessage(message.channel, s"<@${message.user}>: ${retort}!")
+        }
+      }
+
+      case _ => {}
     }
-    */
+  }
+
+
+  val retorts = List(
+    "Aaaaaargh!",
+    "WHY!!!!!!!!!!!!",
+    "THat vloody does it!!!!!!",
+    "Feck Off!!!",
+    "Get Lost!",
+    "No!!!!"
+  )
+
+  def doRetort(message: String) = {
+    val ws = AngryUtils.extractAngryWords(message.toLowerCase)
+    val wSet = ws.toSet
+    if(wSet.contains("matter")) "You're the f*%##$&g matter!" else {
+      if(wSet.contains("problem")) "You're the f*%##$&g problem!" else {
+        val rand = scala.util.Random.nextInt(retorts.size)
+        retorts(rand)
+      }
+    }
   }
 }
